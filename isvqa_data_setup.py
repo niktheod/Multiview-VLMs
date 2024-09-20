@@ -59,7 +59,7 @@ class ISVQA(Dataset):
         # Get the final inputs that will go into the model
         inputs = self.processor(images, question)
 
-        one_hot_answer_list = []
+        final_one_hot_answer = torch.zeros(len(self.answers)).to(device)
 
         for answer in data["answers"]:
             if answer != "<unk>":
@@ -68,7 +68,9 @@ class ISVQA(Dataset):
 
                 one_hot_answer = F.one_hot(answer_idx, len(self.answers)).type(torch.float32).to(self.device)
 
-                one_hot_answer_list.append(one_hot_answer)
+                final_one_hot_answer += one_hot_answer
 
-        return inputs, one_hot_answer_list
+        final_one_hot_answer_for_loss = torch.where(final_one_hot_answer > 1, 1, final_one_hot_answer)
+
+        return inputs, final_one_hot_answer_for_loss, final_one_hot_answer
     
