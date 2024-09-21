@@ -70,7 +70,7 @@ class ISVQA(Dataset):
 
                 final_one_hot_answer += one_hot_answer
 
-        final_one_hot_answer_for_loss = torch.where(final_one_hot_answer > 1, 1, final_one_hot_answer)
+        final_one_hot_answer_for_loss = final_one_hot_answer / len(data["answers"])
 
         return inputs, final_one_hot_answer_for_loss, final_one_hot_answer
     

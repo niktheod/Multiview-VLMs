@@ -37,8 +37,9 @@ def train_one_epoch(model: nn.Module,
     accum_acc = 0  # accumulation of the accuracy of each batch
     
     for i, (X, y, y_acc) in enumerate(loader):
-        outputs = model(**X, labels=y)
-        loss = outputs.loss
+        outputs = model(**X)
+        loss_fn = nn.CrossEntropyLoss()
+        loss = loss_fn(outputs.logits, y)
         loss /= grad_accum_size
         loss.backward()
         pred = max_to_one_hot(outputs.logits)
@@ -72,8 +73,9 @@ def val_step(model: nn.Module,
 
     with torch.inference_mode():
         for i, (X, y, y_acc) in enumerate(loader):
-            outputs = model(**X, labels=y)
-            loss = outputs.loss
+            outputs = model(**X)
+            loss_fn = nn.CrossEntropyLoss()
+            loss = loss_fn(outputs.logits, y)
             pred = max_to_one_hot(outputs.logits)
             acc = acc_fn(pred, y_acc)
 
