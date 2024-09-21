@@ -7,10 +7,11 @@ import datetime
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR
+from transformers import BertTokenizer, BertModel
 from collections import defaultdict
 from isvqa_data_setup import ISVQA
 from nuscenesqa_data_setup import NuScenesQA
-from models import MultiviewViltForQuestionAnsweringBaseline, DoubleVilt, ImageSetQuestionAttention
+from models import MultiviewViltModel, DoubleVilt, ImageSetQuestionAttention
 from engine import trainjob
 from nuscenes.nuscenes import NuScenes
 from typing import List, Tuple
@@ -164,6 +165,20 @@ def train(hyperparameters: defaultdict,
                             batch_size=batch_size,
                             shuffle=False)
     
+    # Create a matrix with the embedding representations for all the answers
+    with open(answers_path) as f:
+        answers = json.load(f)
+    
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    model = BertModel.from_pretrained('bert-base-uncased')
+
+    inputs = tokenizer(answers, padding=True, truncation=True, return_tensors="pt")
+
+    with torch.inference_mode():
+        outputs = model(**inputs)
+
+    ans_embeddings = outputs[0][:, 0, :]
+    
     # Define some values necessary for the initialization of the model
     set_size = hyperparameters["set_size"] if hyperparameters["set_size"] is not None else 6
     img_seq_len = hyperparameters["img_seq_len"] if hyperparameters["img_seq_len"] is not None else 210
@@ -175,19 +190,12 @@ def train(hyperparameters: defaultdict,
 
     # Define the model
     if model_variation == "baseline":
-        model = MultiviewViltForQuestionAnsweringBaseline(set_size, img_seq_len, emb_dim, pretrained_baseline, pretrained_baseline, img_lvl_pos_emb).to(device)
+        model = MultiviewViltModel(set_size, img_seq_len, emb_dim, pretrained_baseline, pretrained_baseline, img_lvl_pos_emb).to(device)
 
-        # If we use pretrained weights and we don't want to fine tune the whole model (we only want to learn the VQA head), then we set requires_grad = False for all the other parameters.
-        if not fine_tune_all and pretrained_baseline:
-            for param in model.parameters():
-                param.requires_grad = False
-
-        model.model.classifier = nn.Sequential(
-            nn.Linear(emb_dim, 1536),
-            nn.LayerNorm(1536),
-            nn.GELU(),
-            nn.Linear(1536, num_answers)
-        ).to(device)
+        # # If we use pretrained weights and we don't want to fine tune the whole model (we only want to learn the VQA head), then we set requires_grad = False for all the other parameters.
+        # if not fine_tune_all and pretrained_baseline:
+        #     for param in model.parameters():
+        #         param.requires_grad = False
     elif model_variation == "double_vilt":
         pretrained_final_model = hyperparameters["double_vilt"]["pretrained_final_model"]
 
@@ -268,7 +276,7 @@ def train(hyperparameters: defaultdict,
     grad_accum_size = hyperparameters["grad_accum_size"] if hyperparameters["grad_accum_size"] is not None else 1
 
     # Run the training job
-    results = trainjob(model, epochs, train_loader, val_loader, optimizer, scheduler, grad_accum_size)
+    results = trainjob(model, epochs, train_loader, val_loader, ans_embeddings, optimizer, scheduler, grad_accum_size)
 
     # Define a setup dictionary that will be saved together with the results, in order to be able to remeber what setup gave the corresponding results
     if model_variation == "baseline":
