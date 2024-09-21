@@ -6,7 +6,7 @@ from typing import Callable
 def accuracy(predictions: torch.Tensor, targets: torch.Tensor) -> float:
     scores = (predictions * targets).sum(dim=1)
     final_scores = torch.where(scores > 1, 1, torch.where(scores == 1, 0.5, 0))
-    return final_scores.sum() / predictions.shape[0]
+    return (final_scores.sum() / predictions.shape[0]).item()
 
 
 def max_to_one_hot(tensor: torch.Tensor) -> torch.Tensor:
