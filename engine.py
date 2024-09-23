@@ -9,25 +9,22 @@ def accuracy(predictions: torch.Tensor, targets: torch.Tensor) -> float:
     return (final_scores.sum() / predictions.shape[0]).item()
 
 
-def max_to_one_hot(tensor: torch.Tensor) -> torch.Tensor:
-    """
-    Converts a tensor of logits into a one-hot encoded tensor.
-
-    This function takes a 2D tensor where each row represents a set of logits for different classes,
-    and converts it into a one-hot encoded tensor where the maximum value in each row is set to 1, and all other values
-    are set to 0.
-    """
-    _, max_indices = tensor.max(dim=1)
-    one_hot_tensor = torch.zeros_like(tensor)
-    one_hot_tensor.scatter_(1, max_indices.unsqueeze(1), 1)
+def make_pred(pred_emb, ans_embs) -> torch.Tensor:
+    cos_sim = nn.CosineSimilarity()
+    similarities = cos_sim(pred_emb, ans_embs)
+    one_hot_tensor = torch.zeros(ans_embs.shape[0])
+    one_hot_tensor[torch.argmax(similarities)] = 1
     return one_hot_tensor
 
 
 def cos_sim_weighted_loss(pred_emb, ans_embs, weights):
-    pass
+    cos_sim = nn.CosineSimilarity()
+    similarities = cos_sim(pred_emb, ans_embs)
+    losses = torch.where(weights>0, (1-similarities)*weights, torch.max(0, similarities))
+    return losses.mean()
 
 
-def train_one_epoch(vq_model: nn.Module,
+def train_one_epoch(model: nn.Module,
                     loader: torch.utils.data.DataLoader, 
                     ans_embeddings: torch.Tensor,
                     optimizer: torch.optim, 
@@ -37,17 +34,17 @@ def train_one_epoch(vq_model: nn.Module,
     A function that trains a model by going through all the mini-batches in the training dataloader once.
     """
     print("\tTraining...")
-    vq_model.train()
+    model.train()
     accum_loss = 0  # accumulation of the loss of each batch
     accum_acc = 0  # accumulation of the accuracy of each batch
     
     for i, (X, y, y_acc) in enumerate(loader):
-        outputs = vq_model(**X, labels=y)
+        outputs = model(**X, labels=y)
         pred_emb = outputs.pooler_output
         loss = cos_sim_weighted_loss(pred_emb, ans_embeddings, y)
         loss /= grad_accum_size
         loss.backward()
-        pred = max_to_one_hot(outputs.logits)
+        pred = make_pred(pred_emb, ans_embeddings)
         acc = acc_fn(pred, y_acc)
 
         accum_loss += loss.item()
@@ -80,8 +77,9 @@ def val_step(model: nn.Module,
     with torch.inference_mode():
         for i, (X, y, y_acc) in enumerate(loader):
             outputs = model(**X, labels=y)
-            loss = outputs.loss
-            pred = max_to_one_hot(outputs.logits)
+            pred_emb = outputs.pooler_output
+            loss = cos_sim_weighted_loss(pred_emb, ans_embeddings, y)
+            pred = make_pred(pred_emb, ans_embeddings)
             acc = acc_fn(pred, y_acc)
 
             accum_loss += loss.item()
