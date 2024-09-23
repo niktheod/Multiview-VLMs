@@ -151,7 +151,7 @@ def train(hyperparameters: defaultdict,
                              device=device)
 
         num_answers = len(train_set.answers)
-
+        
     batch_size = hyperparameters["batch_size"]
 
     # Define the train and val dataloaders
