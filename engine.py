@@ -23,6 +23,10 @@ def max_to_one_hot(tensor: torch.Tensor) -> torch.Tensor:
     return one_hot_tensor
 
 
+def cos_sim_weighted_loss(pred_emb, ans_embs, weights):
+    pass
+
+
 def train_one_epoch(vq_model: nn.Module,
                     loader: torch.utils.data.DataLoader, 
                     ans_embeddings: torch.Tensor,
@@ -40,6 +44,7 @@ def train_one_epoch(vq_model: nn.Module,
     for i, (X, y, y_acc) in enumerate(loader):
         outputs = vq_model(**X, labels=y)
         pred_emb = outputs.pooler_output
+        loss = cos_sim_weighted_loss(pred_emb, ans_embeddings, y)
         loss /= grad_accum_size
         loss.backward()
         pred = max_to_one_hot(outputs.logits)
