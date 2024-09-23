@@ -62,13 +62,12 @@ class ISVQA(Dataset):
         final_one_hot_answer = torch.zeros(len(self.answers)).to(device)
 
         for answer in data["answers"]:
-            if answer != "<unk>":
-                # Turn the answer into an one-hot encoded representation, based on the index of it in the list with all the unique answers
-                answer_idx = torch.tensor(self.answers.index(answer))
+            # Turn the answer into an one-hot encoded representation, based on the index of it in the list with all the unique answers
+            answer_idx = torch.tensor(self.answers.index(answer))
 
-                one_hot_answer = F.one_hot(answer_idx, len(self.answers)).type(torch.float32).to(self.device)
+            one_hot_answer = F.one_hot(answer_idx, len(self.answers)).type(torch.float32).to(self.device)
 
-                final_one_hot_answer += one_hot_answer
+            final_one_hot_answer += one_hot_answer
 
         final_one_hot_answer_for_loss = torch.where(final_one_hot_answer > 1, 1, final_one_hot_answer)
 
