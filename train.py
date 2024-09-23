@@ -79,7 +79,7 @@ def train(hyperparameters: defaultdict,
           nuscenes_path: str,
           path_to_save_results: str,
           path_to_save_model: str,
-          title: str = None,
+          results_subfolder: str = None,
           pretrained_baseline: bool = True,
           fine_tune_all: bool = False,
           img_lvl_pos_emb : bool = False,
@@ -330,11 +330,10 @@ def train(hyperparameters: defaultdict,
                     }
 
     # Save the model and the results
-    if title is None or os.path.exists(f"{path_to_save_results}/{title}"):
-        title = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    title = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    results_folder = f"{path_to_save_results}/{title}"
-    model_folder = f"{path_to_save_model}/{title}"
+    results_folder = f"{path_to_save_results}/{results_subfolder}/{title}"
+    model_folder = f"{path_to_save_model}/{results_subfolder}/{title}"
 
     if not os.path.exists(results_folder):
         os.makedirs(results_folder)
