@@ -170,14 +170,9 @@ def train(hyperparameters: defaultdict,
         answers = json.load(f)
     
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained('bert-base-uncased')
+    bert = BertModel.from_pretrained('bert-base-uncased').to(device)
 
-    inputs = tokenizer(answers, padding=True, truncation=True, return_tensors="pt")
-
-    with torch.inference_mode():
-        outputs = model(**inputs)
-
-    ans_embeddings = outputs[0][:, 0, :].repeat(batch_size, 1, 1).to(device)
+    inputs = tokenizer(answers, padding=True, truncation=True, return_tensors="pt").to(device)
     
     # Define some values necessary for the initialization of the model
     set_size = hyperparameters["set_size"] if hyperparameters["set_size"] is not None else 6
@@ -245,6 +240,7 @@ def train(hyperparameters: defaultdict,
     # Print the parameters to be trained
     print("Parameters to be trained: ")
     count_parameters(model)
+    count_parameters(bert)
 
     # Define and setup all the necessary hyperparameters and objects for training
     weight_decay = hyperparameters["weight_decay"] if hyperparameters["weight_decay"] is not None else 0
@@ -253,8 +249,10 @@ def train(hyperparameters: defaultdict,
 
     if optimizer_name == "adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=hyperparameters["lr"], weight_decay=weight_decay)
+        a_optimizer = torch.optim.Adam(bert.parameters(), lr=hyperparameters["lr"], weight_decay=weight_decay)
     elif optimizer_name == "adamw":
         optimizer = torch.optim.AdamW(model.parameters(), lr=hyperparameters["lr"], weight_decay=weight_decay)
+        a_optimizer = torch.optim.Adam(bert.parameters(), lr=hyperparameters["lr"], weight_decay=weight_decay)
 
     if scheduler_type == "steplr":
         step_size = hyperparameters["scheduler_step_size"]
@@ -276,7 +274,7 @@ def train(hyperparameters: defaultdict,
     grad_accum_size = hyperparameters["grad_accum_size"] if hyperparameters["grad_accum_size"] is not None else 1
 
     # Run the training job
-    results = trainjob(model, epochs, train_loader, val_loader, ans_embeddings, optimizer, scheduler, grad_accum_size)
+    results = trainjob(model, bert, epochs, train_loader, val_loader, inputs, optimizer, a_optimizer, scheduler, grad_accum_size)
 
     # Define a setup dictionary that will be saved together with the results, in order to be able to remeber what setup gave the corresponding results
     if model_variation == "baseline":
