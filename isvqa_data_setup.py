@@ -59,7 +59,7 @@ class ISVQA(Dataset):
         # Get the final inputs that will go into the model
         inputs = self.processor(images, question)
 
-        final_one_hot_answer = torch.zeros(len(self.answers)).to(device)
+        final_one_hot_answer = torch.zeros(len(self.answers)).to(self.device)
 
         for answer in data["answers"]:
             # Turn the answer into an one-hot encoded representation, based on the index of it in the list with all the unique answers

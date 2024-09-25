@@ -158,7 +158,7 @@ def train(hyperparameters: defaultdict,
     # Define the train and val dataloaders
     train_loader = DataLoader(train_set,
                               batch_size=batch_size,
-                              shuffle=True,
+                              shuffle=False,
                               generator=generator)
 
     val_loader = DataLoader(val_set,
@@ -177,7 +177,7 @@ def train(hyperparameters: defaultdict,
     with torch.inference_mode():
         outputs = model(**inputs)
 
-    ans_embeddings = outputs[0][:, 0, :]
+    ans_embeddings = outputs[0][:, 0, :].repeat(batch_size, 1, 1).to(device)
     
     # Define some values necessary for the initialization of the model
     set_size = hyperparameters["set_size"] if hyperparameters["set_size"] is not None else 6

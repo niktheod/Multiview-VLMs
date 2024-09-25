@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from typing import Callable
 
+
 def accuracy(predictions: torch.Tensor, targets: torch.Tensor) -> float:
     scores = (predictions * targets).sum(dim=1)
     final_scores = torch.where(scores > 1, 1, torch.where(scores == 1, 0.5, 0))
@@ -10,18 +11,20 @@ def accuracy(predictions: torch.Tensor, targets: torch.Tensor) -> float:
 
 
 def make_pred(pred_emb, ans_embs) -> torch.Tensor:
-    cos_sim = nn.CosineSimilarity()
-    similarities = cos_sim(pred_emb, ans_embs)
-    one_hot_tensor = torch.zeros(ans_embs.shape[0])
-    one_hot_tensor[torch.argmax(similarities)] = 1
+    cos_sim = nn.CosineSimilarity(dim=2)
+    similarities = cos_sim(pred_emb, ans_embs[:len(pred_emb)])
+    one_hot_tensor = torch.zeros_like(ans_embs[:len(pred_emb), :, 0])
+    max_indices = torch.argmax(similarities, dim=1)
+    for dim in range(one_hot_tensor.shape[0]):
+        one_hot_tensor[dim, max_indices[dim]] = 1
     return one_hot_tensor
 
 
 def cos_sim_weighted_loss(pred_emb, ans_embs, weights):
-    cos_sim = nn.CosineSimilarity()
-    similarities = cos_sim(pred_emb, ans_embs)
-    losses = torch.where(weights>0, (1-similarities)*weights, torch.max(0, similarities))
-    return losses.mean()
+    cos_sim = nn.CosineSimilarity(dim=2)
+    similarities = cos_sim(pred_emb, ans_embs[:len(pred_emb)])
+    losses = torch.where(weights>0, (1-similarities)*weights, torch.max(torch.zeros(1).to("cuda"), similarities))
+    return losses.sum(dim=1).mean()
 
 
 def train_one_epoch(model: nn.Module,
@@ -39,8 +42,8 @@ def train_one_epoch(model: nn.Module,
     accum_acc = 0  # accumulation of the accuracy of each batch
     
     for i, (X, y, y_acc) in enumerate(loader):
-        outputs = model(**X, labels=y)
-        pred_emb = outputs.pooler_output
+        outputs = model(**X)
+        pred_emb = outputs.pooler_output.unsqueeze(1)
         loss = cos_sim_weighted_loss(pred_emb, ans_embeddings, y)
         loss /= grad_accum_size
         loss.backward()
@@ -76,8 +79,8 @@ def val_step(model: nn.Module,
 
     with torch.inference_mode():
         for i, (X, y, y_acc) in enumerate(loader):
-            outputs = model(**X, labels=y)
-            pred_emb = outputs.pooler_output
+            outputs = model(**X)
+            pred_emb = outputs.pooler_output.unsqueeze(1)
             loss = cos_sim_weighted_loss(pred_emb, ans_embeddings, y)
             pred = make_pred(pred_emb, ans_embeddings)
             acc = acc_fn(pred, y_acc)
