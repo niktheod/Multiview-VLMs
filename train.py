@@ -7,7 +7,7 @@ import datetime
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR
-from transformers import BertTokenizer, BertModel
+from transformers import BertTokenizer, BertModel, BertConfig
 from collections import defaultdict
 from isvqa_data_setup import ISVQA
 from nuscenesqa_data_setup import NuScenesQA
@@ -170,7 +170,7 @@ def train(hyperparameters: defaultdict,
         answers = json.load(f)
     
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    bert = BertModel.from_pretrained('bert-base-uncased').to(device)
+    bert = BertModel(BertConfig()).to(device)
 
     inputs = tokenizer(answers, padding=True, truncation=True, return_tensors="pt").to(device)
     
