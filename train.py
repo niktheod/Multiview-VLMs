@@ -273,8 +273,10 @@ def train(hyperparameters: defaultdict,
 
     grad_accum_size = hyperparameters["grad_accum_size"] if hyperparameters["grad_accum_size"] is not None else 1
 
+    comp_model = torch.compile(model)
+
     # Run the training job
-    results = trainjob(model, bert, epochs, train_loader, val_loader, inputs, optimizer, a_optimizer, scheduler, grad_accum_size)
+    results = trainjob(comp_model, bert, epochs, train_loader, val_loader, inputs, optimizer, a_optimizer, scheduler, grad_accum_size)
 
     # Define a setup dictionary that will be saved together with the results, in order to be able to remeber what setup gave the corresponding results
     if model_variation == "baseline":
@@ -282,6 +284,7 @@ def train(hyperparameters: defaultdict,
                     "dataset": dataset,
                     "pretrained_baseline": pretrained_baseline,
                     "fine_tune_all": fine_tune_all,
+                    "img_lvl_pos_emb": img_lvl_pos_emb,
                     "seed": seed,
                     "train_percentage": train_percentage,
                     "val_percentage": val_percentage,
@@ -300,6 +303,7 @@ def train(hyperparameters: defaultdict,
         setup = {"model_variation": model_variation,
                     "dataset": dataset,
                     "pretrained_baseline": pretrained_baseline,
+                    "img_lvl_pos_emb": img_lvl_pos_emb,
                     "seed": seed,
                     "train_percentage": train_percentage,
                     "val_percentage": val_percentage,
