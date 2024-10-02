@@ -16,7 +16,9 @@ class SmallVLM(nn.Module):
         else:
             self.visual_encoder = torchvision.models.vgg16_bn().features.to(device)
 
-        self.embedding = nn.Embedding.from_pretrained(pretrained_embeddings, freeze=not train_emb).to(device)
+        unk_emb = torch.ones(1, embedding_dimension)
+        all_embeddings = torch.cat([unk_emb, pretrained_embeddings])
+        self.embedding = nn.Embedding.from_pretrained(all_embeddings, freeze=not train_emb).to(device)
         self.lstm = nn.LSTM(embedding_dimension, hidden_lstm_dim, bidirectional=True, batch_first=True).to(device)
 
         self.big_projection_layer = nn.Linear(25088, embedding_dimension).to(device)
@@ -30,8 +32,13 @@ class SmallVLM(nn.Module):
         ).to(device)
 
     def forward(self, batch_token_ids, lengths, batch_images):
-        word_emb = self.embedding(batch_token_ids)
-        packed = nn.utils.rnn.pack_padded_sequence(word_emb, lengths, batch_first=True, enforce_sorted=False)
+        # print(batch_token_ids)
+        try:
+            word_emb = self.embedding(batch_token_ids)
+        except IndexError:
+            print(batch_token_ids)
+            raise ValueError
+        packed = nn.utils.rnn.pack_padded_sequence(word_emb, lengths.squeeze(), batch_first=True, enforce_sorted=False)
         _, (questions_features, _) = self.lstm(packed)
         questions_features = questions_features.mean(dim=0)
 

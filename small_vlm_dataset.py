@@ -44,9 +44,9 @@ class SmallVLMDataset(Dataset):
         token_ids = torch.zeros(self.max_size, dtype=torch.int64).to(self.device)
         for i, token in enumerate(question_tokens):
             if token in self.vocab:
-                token_ids[i] = self.vocab.index(token)
+                token_ids[i] = self.vocab.index(token) + 1
             else:
-                token_ids[i] = -1
+                token_ids[i] = 0
         
         length = torch.tensor([len(data["question_tokens"])], dtype=torch.int64)
 
