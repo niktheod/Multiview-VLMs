@@ -128,7 +128,7 @@ class MultiviewViltForQuestionAnsweringBaseline(nn.Module):
     """
     A baseline based on ViltForQuestionAnswering, but it works with a set of images.
     """
-    def __init__(self, set_size: int, seq_len: int, emb_dim: int, pretrained_body: bool, pretrained_head: bool, img_lvl_pos_emb: bool) -> None:
+    def __init__(self, set_size: int, seq_len: int, emb_dim: int, pretrained_body: bool, pretrained_head: bool, img_lvl_pos_emb: bool, blind: bool = False) -> None:
         super().__init__()
         # Initialize the parameters of the model either from pretrained parameters or randomly (choices between pretrained parameters only for the body of the model
         # or both the body and the head or none)
@@ -142,6 +142,8 @@ class MultiviewViltForQuestionAnsweringBaseline(nn.Module):
         else:
             self.model = ViltForQuestionAnswering(ViltConfig(hidden_size=emb_dim))
             self.model.vilt = MultiviewViltModel(set_size, seq_len, emb_dim, False, False, img_lvl_pos_emb)  # Change the body of the model (ViltModel) with the Multiview version of it
+
+        self.blind = blind
 
     def forward(
         self,
@@ -158,6 +160,9 @@ class MultiviewViltForQuestionAnsweringBaseline(nn.Module):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None
     ) -> Union[SequenceClassifierOutput, Tuple[torch.FloatTensor]]:
+        if self.blind:
+            pixel_values = torch.ones_like(pixel_values) * (-1)
+
         return self.model(input_ids, token_type_ids, attention_mask, pixel_values, pixel_mask, head_mask, inputs_embeds,
                           image_embeds, labels, output_attentions, output_hidden_states, return_dict)
 

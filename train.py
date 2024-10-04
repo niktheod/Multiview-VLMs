@@ -175,7 +175,8 @@ def train(hyperparameters: defaultdict,
 
     # Define the model
     if model_variation == "baseline":
-        model = MultiviewViltForQuestionAnsweringBaseline(set_size, img_seq_len, emb_dim, pretrained_baseline, pretrained_baseline, img_lvl_pos_emb).to(device)
+        blind  = hyperparameters["blind"] if hyperparameters["blind"] is not None else False
+        model = MultiviewViltForQuestionAnsweringBaseline(set_size, img_seq_len, emb_dim, pretrained_baseline, pretrained_baseline, img_lvl_pos_emb, blind=blind).to(device)
 
         # If we use pretrained weights and we don't want to fine tune the whole model (we only want to learn the VQA head), then we set requires_grad = False for all the other parameters.
         if not fine_tune_all and pretrained_baseline:
@@ -291,7 +292,8 @@ def train(hyperparameters: defaultdict,
                     "grad_accum_size": grad_accum_size,
                     "scheduler": scheduler_type,
                     "scheduler_step_size": hyperparameters["scheduler_step_size"],
-                    "scheduler_gamma": hyperparameters["scheduler_gamma"]
+                    "scheduler_gamma": hyperparameters["scheduler_gamma"],
+                    "blind": blind
                     }
     elif model_variation == "double_vilt":
         setup = {"model_variation": model_variation,
