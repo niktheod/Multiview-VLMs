@@ -10,8 +10,10 @@ from torch.optim.lr_scheduler import StepLR
 from collections import defaultdict
 from isvqa_data_setup import ISVQA
 from nuscenesqa_data_setup import NuScenesQA
+from nuscenesmqa_data_setup import NuScenesMQA
 from models import MultiviewViltForQuestionAnsweringBaseline, DoubleVilt, ImageSetQuestionAttention
 from engine import trainjob
+from nuscenesmqa_engine import nuscenesmqa_trainjob
 from nuscenes.nuscenes import NuScenes
 from typing import List, Tuple
 from prettytable import PrettyTable
@@ -99,20 +101,21 @@ def train(hyperparameters: defaultdict,
     generator = torch.Generator().manual_seed(seed)  # set a generator for reproducable results
     train_percentage = hyperparameters["train_percentage"]
     val_percentage = hyperparameters["val_percentage"]
+    affix = ".csv" if dataset == "nuscenesmqa" else ".json"
 
     # Define the paths for the train, val, and test sets
     if train_percentage == "trainval":
-        train_path = f"{qa_path}/trainval_set.json"
-        val_path = f"{qa_path}/test_set.json"
+        train_path = f"{qa_path}/trainval_set{affix}"
+        val_path = f"{qa_path}/test_set{affix}"
     else:
         if train_percentage is None or train_percentage == 100:
-            train_path = f"{qa_path}/train_set.json"
+            train_path = f"{qa_path}/train_set{affix}"
         else:
-            train_path = f"{qa_path}/train_set_{train_percentage}.json"
+            train_path = f"{qa_path}/train_set_{train_percentage}{affix}"
         if val_percentage is None or val_percentage == 100:
-            val_path = f"{qa_path}/val_set.json"
+            val_path = f"{qa_path}/val_set{affix}"
         else:
-            val_path = f"{qa_path}/val_set_{val_percentage}.json"
+            val_path = f"{qa_path}/val_set_{val_percentage}{affix}"
     answers_path = f"{qa_path}/answers.json"
 
     processor_type = "vit" if model_variation == "vit_vilt" else "vilt"
@@ -144,6 +147,25 @@ def train(hyperparameters: defaultdict,
                                device=device)
         
         val_set = NuScenesQA(qa_path=val_path,
+                             nusc=nusc,
+                             nuscenes_path=nuscenes_path,
+                             answers_path=answers_path,
+                             processor_type=processor_type,
+                             device=device)
+
+        num_answers = len(train_set.answers)
+    elif dataset == "nuscenesmqa":
+        dataroot = nuscenes_path[:-8]
+        nusc = NuScenes(version="v1.0-trainval", dataroot=dataroot, verbose=False)
+
+        train_set = NuScenesMQA(qa_path=train_path,
+                               nusc=nusc,
+                               nuscenes_path=nuscenes_path,
+                               answers_path=answers_path,
+                               processor_type=processor_type,
+                               device=device)
+        
+        val_set = NuScenesMQA(qa_path=val_path,
                              nusc=nusc,
                              nuscenes_path=nuscenes_path,
                              answers_path=answers_path,
@@ -271,7 +293,10 @@ def train(hyperparameters: defaultdict,
     comp_model = torch.compile(model)
 
     # Run the training job
-    results = trainjob(comp_model, epochs, train_loader, val_loader, optimizer, scheduler, grad_accum_size)
+    if dataset == "nuscenesmqa":
+        results = nuscenesmqa_trainjob(comp_model, epochs, train_loader, val_loader, optimizer, scheduler, grad_accum_size)
+    else:
+        results = trainjob(comp_model, epochs, train_loader, val_loader, optimizer, scheduler, grad_accum_size)
 
     # Define a setup dictionary that will be saved together with the results, in order to be able to remeber what setup gave the corresponding results
     if model_variation == "baseline":
@@ -340,7 +365,7 @@ def train(hyperparameters: defaultdict,
     title = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     results_folder = f"{path_to_save_results}/{results_subfolder}/{title}"
-    model_folder = f"{path_to_save_model}/{results_subfolder}/{title}"
+    model_folder = f"{path_to_save_model}/{title}"
 
     if not os.path.exists(results_folder):
         os.makedirs(results_folder)
