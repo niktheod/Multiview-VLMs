@@ -74,7 +74,7 @@ def val_step(model: nn.Module,
             outputs = model(**X, labels=y)
             loss = outputs.loss
             pred = max_to_one_hot(outputs.logits)
-            acc = acc_fn(pred)
+            acc = acc_fn(pred, y)
 
             accum_loss += loss.item()
             accum_acc += acc
