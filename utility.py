@@ -60,7 +60,8 @@ class ViltSetProcessor():
                                         padding="max_length", 
                                         return_tensors='pt',
                                         return_attention_mask=True,
-                                        return_token_type_ids=True)
+                                        return_token_type_ids=True,
+                                        clean_up_tokenization_spaces=True)
         
         # Second process the set of images
         processed_img = self.image_set_processor(image_set)
@@ -129,7 +130,8 @@ class ViTSetProcessor():
                                         padding="max_length", 
                                         return_tensors='pt',
                                         return_attention_mask=True,
-                                        return_token_type_ids=True)
+                                        return_token_type_ids=True,
+                                        clean_up_tokenization_spaces=True)
         
         # Second process the set of images
         processed_img = self.image_set_processor(image_set)

@@ -96,6 +96,8 @@ def train(hyperparameters: defaultdict,
     Finally, it saves the results (numbers and plots) as wel as a setup file with all the details (hyperparameters, dataset etc.) of the current training job.
     """
     
+    torch.set_float32_matmul_precision("high")
+
     seed = hyperparameters["seed"] if hyperparameters["seed"] is not None else 42
 
     generator = torch.Generator().manual_seed(seed)  # set a generator for reproducable results
